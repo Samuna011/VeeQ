@@ -1,19 +1,32 @@
 <script setup>
-import { onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted, watch } from 'vue'
+
+const props = defineProps({
+  isPaused: { type: Boolean, default: false }
+})
 
 const canvas = ref(null)
 let ctx
 let particles = []
 let animationId
 let width, height
+let time = 0
 
 onMounted(() => {
   ctx = canvas.value.getContext('2d')
   resizeCanvas()
   initParticles()
-  animate()
-  
+  if (!props.isPaused) animate()
   window.addEventListener('resize', handleResize)
+})
+
+watch(() => props.isPaused, (paused) => {
+  if (paused && animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  } else if (!paused && canvas.value && ctx) {
+    animate()
+  }
 })
 
 onUnmounted(() => {
@@ -30,7 +43,6 @@ function handleResize() {
 function resizeCanvas() {
   width = window.innerWidth
   height = window.innerHeight
-  // Fix DPI blurriness
   const dpr = window.devicePixelRatio || 1
   canvas.value.width = width * dpr
   canvas.value.height = height * dpr
@@ -38,20 +50,28 @@ function resizeCanvas() {
 }
 
 function initParticles() {
-  const particleCount = Math.floor(width / 15) // Responsive count
-  
+  const particleCount = Math.floor((width / 12) * (height / 800)) + 40
+
+  const colors = [
+    '#0f0a14', '#1a0d24', '#2d1b4e', '#3b0764', '#4c1d95', '#1e0333', '#000000'
+  ]
+
   for (let i = 0; i < particleCount; i++) {
+    const sizeY = Math.random() * 14 + 6
+    const sizeX = sizeY * (0.35 + Math.random() * 0.35)
     particles.push({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 8 + 3, // Petal size
-      speedY: Math.random() * 1.5 + 0.5,
-      speedX: Math.random() * 1 - 0.5,
+      sizeX,
+      sizeY,
+      speedY: Math.random() * 1.2 + 0.4,
+      speedX: (Math.random() - 0.5) * 0.8,
       rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.05,
-      opacity: Math.random() * 0.4 + 0.1,
-      // Color variations: Black or Very Dark Purple
-      color: Math.random() > 0.5 ? '#000000' : '#220033' 
+      rotationSpeed: (Math.random() - 0.5) * 0.04,
+      opacity: Math.random() * 0.35 + 0.08,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      phase: Math.random() * Math.PI * 2,
+      sway: 0.8 + Math.random() * 1.2,
     })
   }
 }
@@ -60,47 +80,50 @@ function drawPetal(p) {
   ctx.save()
   ctx.translate(p.x, p.y)
   ctx.rotate(p.rotation)
-  ctx.globalAlpha = p.opacity
-  ctx.fillStyle = p.color
-  
-  // Draw an elliptical leaf/petal shape
+
+  const gradient = ctx.createLinearGradient(-p.sizeX, -p.sizeY, p.sizeX, p.sizeY)
+  gradient.addColorStop(0, p.color)
+  gradient.addColorStop(0.5, p.color)
+  gradient.addColorStop(1, p.color)
+
+  ctx.globalAlpha = p.opacity * (0.85 + 0.15 * Math.sin(time * 0.5 + p.phase))
+  ctx.fillStyle = gradient
+
   ctx.beginPath()
-  ctx.ellipse(0, 0, p.size, p.size * 2, 0, 0, Math.PI * 2)
+  ctx.ellipse(0, 0, p.sizeX, p.sizeY, 0, 0, Math.PI * 2)
   ctx.fill()
-  
+
   ctx.restore()
 }
 
 function animate() {
+  if (props.isPaused) return
+  time += 0.02
   ctx.clearRect(0, 0, width, height)
-  
+
   for (let i = 0; i < particles.length; i++) {
-    let p = particles[i]
-    
+    const p = particles[i]
+
     p.y += p.speedY
     p.x += p.speedX
     p.rotation += p.rotationSpeed
-    
-    // Slight sway
-    p.x += Math.sin(p.y * 0.01) * 0.5
-    
+    p.x += Math.sin(p.y * 0.008 + time * 0.3) * p.sway
+    p.x += Math.sin(time * 0.5 + p.phase) * 0.3
+
     drawPetal(p)
-    
-    // Reset petal to top when it falls off screen
-    if (p.y > height + p.size * 2) {
-      p.y = -p.size * 2
+
+    if (p.y > height + p.sizeY * 2) {
+      p.y = -p.sizeY * 2
       p.x = Math.random() * width
     }
-    // wrap horizontal bounds
-    if (p.x > width + p.size) p.x = -p.size
-    if (p.x < -p.size) p.x = width + p.size
+    if (p.x > width + p.sizeX) p.x = -p.sizeX
+    if (p.x < -p.sizeX) p.x = width + p.sizeX
   }
-  
-  animationId = requestAnimationFrame(animate)
+
+  if (!props.isPaused) animationId = requestAnimationFrame(animate)
 }
 </script>
 
 <template>
-  <!-- Fixed background canvas, pointer events none so it doesn't block scroll -->
-  <canvas ref="canvas" class="fixed inset-0 pointer-events-none z-0 w-screen h-screen opacity-70"></canvas>
+  <canvas ref="canvas" class="fixed inset-0 pointer-events-none z-0 w-screen h-screen opacity-80" style="mix-blend-mode: multiply;"></canvas>
 </template>

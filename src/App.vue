@@ -1,89 +1,61 @@
 <script setup>
-import { onMounted, ref, onUnmounted, nextTick } from 'vue'
+import { defineAsyncComponent, ref, onUnmounted, nextTick, onErrorCaptured } from 'vue'
 import Lenis from 'lenis'
 
-import OrchidUniverse from './components/OrchidUniverse.vue'
+const OrchidUniverse = defineAsyncComponent({
+  loader: () => import('./components/OrchidUniverse.vue'),
+  loadingComponent: { template: '<div class="fixed inset-0 bg-[#020003] flex items-center justify-center text-white/60 text-sm tracking-widest">Loading...</div>' },
+  errorComponent: { template: '<div class="fixed inset-0 bg-[#020003] flex flex-col items-center justify-center text-white/80 p-8"><p class="text-lg mb-4">Something went wrong.</p><button onclick="location.reload()" class="px-6 py-2 border border-white/40 rounded-full text-sm uppercase tracking-wider">Reload</button></div>' },
+  delay: 200,
+})
 import FallingPetals from './components/FallingPetals.vue'
 import FeatureGallery from './components/FeatureGallery.vue'
 import FooterSection from './components/FooterSection.vue'
 import StoryReader from './components/StoryReader.vue'
 
 const isSiteEntered = ref(false)
+const isTransitioningToSite = ref(false)
 const selectedStory = ref(null)
+const appError = ref(null)
+
+onErrorCaptured(() => {
+  appError.value = true
+  return false
+})
 
 const handleOpenStory = (story) => {
   selectedStory.value = story
-  if (lenis) {
-    lenis.stop() // Pause background scrolling
-  }
+  if (lenis) lenis.stop()
 }
 
 const handleCloseStory = () => {
   selectedStory.value = null
-  if (lenis) {
-    lenis.start() // Resume background scrolling
-  }
-}
-
-// Custom Cursor Logic
-const mouseX = ref(0)
-const mouseY = ref(0)
-const isHovering = ref(false)
-
-const updateCursor = (e) => {
-  mouseX.value = e.clientX
-  mouseY.value = e.clientY
-}
-
-const handleHover = (e) => {
-  if (e.target.closest('a, button, .hover-target')) {
-    isHovering.value = true
-  } else {
-    isHovering.value = false
-  }
+  if (lenis) lenis.start()
 }
 
 let lenis
 
-onMounted(() => {
-  // Cursor Listeners
-  window.addEventListener('mousemove', updateCursor)
-  window.addEventListener('mouseover', handleHover)
-})
-
 onUnmounted(() => {
   if (lenis) lenis.destroy()
-  window.removeEventListener('mousemove', updateCursor)
-  window.removeEventListener('mouseover', handleHover)
 })
 
 const enterMainSite = async () => {
+  isTransitioningToSite.value = true
+  await new Promise(r => setTimeout(r, 700))
   isSiteEntered.value = true
-  
+  isTransitioningToSite.value = false
   await nextTick()
-  
-  // Initialize Smooth Scrolling AFTER the main site is rendered
+
   lenis = new Lenis({
     smoothWheel: true,
     lerp: 0.08,
   })
-
-  // Detect scroll-to-top reversal
-  lenis.on('scroll', (e) => {
-    // e.scroll is the current scroll position.
-    // e.direction is -1 when scrolling up.
-    if (e.scroll <= 0 && e.direction === -1) {
-      exitMainSite()
-    }
-  })
-
-  function raf(time) {
-    if(!lenis) return
-    lenis.raf(time)
+  function raf(t) {
+    if (!lenis) return
+    lenis.raf(t)
     requestAnimationFrame(raf)
   }
   requestAnimationFrame(raf)
-  
   window.scrollTo(0, 0)
 }
 
@@ -99,39 +71,37 @@ const exitMainSite = () => {
 </script>
 
 <template>
-  <!-- Dynamic cursor color based on state (white on dark universe, purple on white site) -->
-  <div 
-    class="custom-cursor fixed top-0 left-0 w-5 h-5 rounded-full pointer-events-none mix-blend-difference z-[9999] transition-transform duration-100 ease-out"
-    :class="{ 
-      'active': isHovering,
-      'bg-white': !isSiteEntered,
-      'bg-[var(--color-orchid-dark)] mix-blend-normal': isSiteEntered
-    }"
-    :style="{ transform: `translate(${mouseX}px, ${mouseY}px) scale(${isHovering ? 2 : 1})` }"
-  ></div>
-
-  <!-- Hero Universe View -->
-  <transition name="fade">
-    <div v-if="!isSiteEntered" class="fixed inset-0 z-50">
-      <OrchidUniverse @enterSite="enterMainSite" />
-    </div>
-  </transition>
-
-  <!-- Main White Site View -->
-  <div v-if="isSiteEntered" class="app-wrapper bg-white min-h-screen text-black overflow-hidden relative transition-colors duration-1000">
-    <FallingPetals />
-    
-    <!-- Render main content above the canvas -->
-    <div class="relative z-10 w-full">
-      <FeatureGallery @openStory="handleOpenStory" />
-      <FooterSection />
-    </div>
-
-    <!-- Story Reader Overlay -->
-    <transition name="slide-up">
-      <StoryReader v-if="selectedStory" :story="selectedStory" @close="handleCloseStory" />
-    </transition>
+  <!-- Error fallback -->
+  <div v-if="appError" class="fixed inset-0 flex flex-col items-center justify-center bg-[#020003] text-white p-8 text-center">
+    <p class="text-lg mb-4">Something went wrong.</p>
+    <button @click="appError = null" class="px-6 py-2 border border-white/50 rounded-full uppercase tracking-wider text-sm">Try again</button>
   </div>
+
+  <template v-else>
+    <!-- Hero Universe View -->
+    <transition name="fade">
+      <div v-if="!isSiteEntered && !isTransitioningToSite" class="fixed inset-0 z-50">
+        <OrchidUniverse @enterSite="enterMainSite" />
+      </div>
+    </transition>
+
+    <!-- Page transition overlay -->
+    <transition name="fade">
+      <div v-if="isTransitioningToSite" class="fixed inset-0 bg-white z-[60] pointer-events-none" aria-hidden="true" />
+    </transition>
+
+    <!-- Main White Site View -->
+    <main v-if="isSiteEntered" class="app-wrapper bg-white min-h-screen text-black overflow-hidden relative transition-colors duration-1000" id="main-content">
+      <FallingPetals :is-paused="!!selectedStory" />
+      <div class="relative z-10 w-full">
+        <FeatureGallery @openStory="handleOpenStory" />
+        <FooterSection />
+      </div>
+      <transition name="slide-up">
+        <StoryReader v-if="selectedStory" :story="selectedStory" @close="handleCloseStory" />
+      </transition>
+    </main>
+  </template>
 </template>
 
 <style>
