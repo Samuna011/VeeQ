@@ -8,125 +8,28 @@ const emit = defineEmits(['openStory'])
 gsap.registerPlugin(ScrollTrigger)
 
 const gallerySection = ref(null)
-const scrollProgress = ref(0)
-let horizontalTween = null
-
-function scrollToPanel(index) {
-  if (!horizontalTween?.scrollTrigger) return
-  const st = horizontalTween.scrollTrigger
-  const panels = gsap.utils.toArray('.feature-panel')
-  const progress = panels.length > 1 ? index / (panels.length - 1) : 0
-  const targetScroll = st.start + progress * (st.end - st.start)
-  window.scrollTo({ top: targetScroll, behavior: 'smooth' })
-}
 
 onMounted(() => {
   const ctx = gsap.context(() => {
-    const panels = gsap.utils.toArray('.feature-panel')
-
-    horizontalTween = gsap.to(panels, {
-      xPercent: -100 * (panels.length - 1),
-      ease: "none",
-      scrollTrigger: {
-        trigger: gallerySection.value,
-        pin: true,
-        scrub: 1.2,
-        snap: 1 / (panels.length - 1),
-        end: () => "+=" + (gallerySection.value.offsetWidth * (panels.length - 1)),
-        onUpdate: (self) => { scrollProgress.value = self.progress }
-      }
-    })
-
-    panels.forEach((panel) => {
-      const numberEl = panel.querySelector('.feature-number')
-      const titleEl = panel.querySelector('.feature-title')
-      const descEl = panel.querySelector('.feature-desc')
-      const ctaEl = panel.querySelector('.feature-cta')
-      const labelEl = panel.querySelector('.feature-label')
-
-      const stagger = 0.12
-      gsap.fromTo([labelEl, numberEl], 
-        { y: 40, opacity: 0, filter: 'blur(8px)' },
-        { 
-          y: 0, 
-          opacity: 1, 
-          filter: 'blur(0px)', 
-          duration: 0.9, 
-          stagger,
+    const items = gsap.utils.toArray('.story-item')
+    items.forEach((el, index) => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 30, scale: 0.98 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.7,
           ease: 'power3.out',
           scrollTrigger: {
-            trigger: panel,
-            containerAnimation: horizontalTween,
-            start: "left 75%",
-            toggleActions: "play none none reverse"
+            trigger: el,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse'
           }
         }
       )
-      gsap.fromTo(titleEl,
-        { y: 120, opacity: 0, filter: 'blur(12px)' },
-        { 
-          y: 0, 
-          opacity: 1, 
-          filter: 'blur(0px)', 
-          duration: 1,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: panel,
-            containerAnimation: horizontalTween,
-            start: "left 70%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-      gsap.fromTo(descEl,
-        { y: 60, opacity: 0, filter: 'blur(6px)' },
-        { 
-          y: 0, 
-          opacity: 1, 
-          filter: 'blur(0px)', 
-          duration: 0.85,
-          delay: 0.15,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: panel,
-            containerAnimation: horizontalTween,
-            start: "left 65%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-      gsap.fromTo(ctaEl,
-        { y: 40, opacity: 0 },
-        { 
-          y: 0, 
-          opacity: 1, 
-          duration: 0.8,
-          delay: 0.25,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: panel,
-            containerAnimation: horizontalTween,
-            start: "left 60%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Subtle 3D tilt on panel based on scroll position
-      ScrollTrigger.create({
-        trigger: panel,
-        containerAnimation: horizontalTween,
-        start: "left right",
-        end: "right left",
-        onUpdate: (self) => {
-          const progress = self.progress
-          const rotateY = (progress - 0.5) * 8
-          gsap.set(panel, { rotateY, transformPerspective: 1200 })
-        }
-      })
     })
   }, gallerySection.value)
-
   return () => ctx.revert()
 })
 
@@ -135,82 +38,90 @@ const features = [
     id: 'out-of-nowhere',
     title: 'Out of Nowhere',
     description: 'An unreal romance that weaves through surreal dimensions, twisting toward a culty climax.',
-    number: '01',
-    gradient: 'from-white to-gray-100'
+    number: '01'
   },
   {
     id: 'bidad',
     title: 'Bidad',
     description: 'A full sci-fi drama exploring humanity\'s survival in the harsh, unforgiving depths of the unknown.',
-    number: '02',
-    gradient: 'from-gray-100 to-[#f5f0f8]'
+    number: '02'
   },
   {
     id: 'coming-soon',
     title: 'More Stories',
     description: 'New worlds and characters are taking shape. Stay tuned for the next chapter from VeeQ\'s imagination.',
-    number: '03',
-    gradient: 'from-[#f5f0f8] to-[#ede8f0]'
+    number: '03'
   }
 ]
 </script>
 
 <template>
-  <section ref="gallerySection" id="gallery" class="relative min-h-screen flex items-center overflow-hidden" aria-label="Story gallery">
-    <div class="flex h-screen bg-transparent" :style="{ width: `${features.length * 100}vw`, perspective: '1200px' }">
-      <div
-        v-for="(feature, index) in features"
-        :key="index"
-        class="feature-panel w-screen h-screen flex flex-col justify-center items-center relative backdrop-blur-[2px] origin-center"
-        style="backface-visibility: hidden;"
-      >
-        <div class="absolute inset-0 bg-gradient-to-br opacity-90 z-0 transition-opacity duration-500" :class="feature.gradient"></div>
+  <section ref="gallerySection" id="gallery" class="relative min-h-screen py-20 md:py-32" aria-label="Story gallery">
+    <div class="container mx-auto px-6 sm:px-8 max-w-4xl relative z-10">
+      <header class="mb-20 md:mb-24 text-center">
+        <h2 class="text-3xl md:text-5xl font-light text-black tracking-widest uppercase mb-4" style="font-family: var(--font-display);">
+          Stories
+        </h2>
+        <div class="w-12 h-px bg-black/20 mx-auto mb-6"></div>
+        <p class="text-sm md:text-base text-black/50 tracking-widest uppercase" style="font-family: var(--font-display);">
+          Select an experience
+        </p>
+      </header>
 
-        <div class="z-10 container mx-auto px-6 lg:px-24 flex flex-col justify-center h-full text-black">
-          <div class="mb-6 flex items-baseline gap-6">
-            <span class="feature-label text-[var(--color-orchid-dark)] text-sm md:text-base font-semibold tracking-[0.35em] uppercase">Story</span>
-            <span class="feature-number text-4xl md:text-6xl font-black text-black/10 tracking-tighter" style="font-family: var(--font-display);">{{ feature.number }}</span>
-          </div>
-          <h2 class="feature-title text-5xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter mb-10 text-black drop-shadow-sm" style="font-family: var(--font-display); letter-spacing: -0.03em;">
-            {{ feature.title }}
-          </h2>
-          <p class="feature-desc text-xl md:text-3xl text-gray-600 max-w-2xl font-light leading-relaxed mb-14" style="font-family: var(--font-serif);">
-            {{ feature.description }}
-          </p>
-          <div class="feature-cta">
-            <button
-              @click="$emit('openStory', feature)"
-              class="px-10 py-4 border-2 border-black/25 rounded-full text-black tracking-[0.25em] uppercase hover:bg-black hover:text-white transition-all duration-400 hover:scale-[1.02] font-medium"
-            >
-              Read Story
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Scroll progress indicator -->
-    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20 pointer-events-none">
-      <div class="flex gap-2 pointer-events-auto">
-        <button
-          v-for="(_, i) in features"
-          :key="i"
-          type="button"
-          class="w-2 h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/30"
-          :class="Math.abs(scrollProgress - (features.length > 1 ? i / (features.length - 1) : 0)) < 0.15 ? 'bg-black scale-125' : 'bg-black/25 hover:bg-black/50'"
-          :aria-label="`Go to story ${i + 1}`"
-          @click="scrollToPanel(i)"
-        />
-      </div>
-      <div class="w-24 h-0.5 bg-black/10 rounded-full overflow-hidden" role="progressbar" :aria-valuenow="Math.round(scrollProgress * 100)" aria-valuemin="0" aria-valuemax="100">
-        <div class="h-full bg-black/40 transition-all duration-300 ease-out" :style="{ width: `${scrollProgress * 100}%` }" />
-      </div>
+      <ul class="flex flex-col gap-8 md:gap-12">
+        <li
+          v-for="(feature, index) in features"
+          :key="feature.id"
+          class="story-item"
+        >
+          <button
+            type="button"
+            class="story-card w-full text-left rounded-[2rem] border border-black/5 bg-white/70 backdrop-blur-2xl px-6 py-8 md:px-12 md:py-10 hover:border-[var(--color-orchid-dark)]/20 hover:bg-white/95 hover:shadow-xl hover:shadow-[var(--color-orchid-light)]/5 transition-all duration-500 ease-out group relative overflow-hidden"
+            @click="$emit('openStory', feature)"
+          >
+            <!-- Hover light glow effect -->
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                 style="background: radial-gradient(800px circle at 50% 50%, rgba(153, 50, 204, 0.03), transparent 40%);"></div>
+                 
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-10 relative z-10">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-4 mb-4">
+                  <span class="text-xs font-semibold tracking-[0.3em] text-[var(--color-orchid-light)] group-hover:text-[var(--color-orchid-dark)] transition-colors duration-500">
+                    CHAPTER {{ feature.number }}
+                  </span>
+                  <div class="h-px bg-black/5 flex-1 group-hover:bg-[var(--color-orchid-light)]/20 transition-colors duration-500"></div>
+                </div>
+                
+                <h3 class="text-2xl md:text-4xl font-normal text-black group-hover:text-[var(--color-orchid-dark)] transition-colors duration-500 tracking-wide mb-4" style="font-family: var(--font-display);">
+                  {{ feature.title }}
+                </h3>
+                
+                <p class="text-sm md:text-lg text-black/60 leading-relaxed font-light max-w-2xl" style="font-family: var(--font-serif);">
+                  {{ feature.description }}
+                </p>
+                
+                <div class="mt-8 flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:border-black transition-all duration-500">
+                    <svg class="w-3 h-3 text-black group-hover:text-white transition-colors duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                  <span class="text-xs font-medium tracking-[0.2em] uppercase text-black/40 group-hover:text-black transition-colors duration-500">
+                    Enter Reader
+                  </span>
+                </div>
+              </div>
+            </div>
+          </button>
+        </li>
+      </ul>
     </div>
   </section>
 </template>
 
 <style scoped>
-.feature-panel {
-  will-change: transform;
+.story-card:focus-visible {
+  outline: 2px solid var(--color-orchid-dark);
+  outline-offset: 4px;
 }
 </style>
